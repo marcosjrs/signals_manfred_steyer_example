@@ -1,80 +1,37 @@
 import { JsonPipe } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Dessert } from '../data/dessert';
 import { DessertFilter } from '../data/dessert-filter';
-import { DessertService } from '../data/dessert.service';
-import { DessertIdToRatingMap, RatingService } from '../data/rating.service';
+import { DessertStore } from '../data/dessert.store';
 import { DessertCardComponent } from '../dessert-card/dessert-card.component';
-import { ToastService } from '../shared/toast';
+import { FormUpdateDirective } from '../shared/form-update.directive';
 
 @Component({
   selector: 'app-desserts',
   standalone: true,
-  imports: [DessertCardComponent, FormsModule, JsonPipe],
+  imports: [DessertCardComponent, FormsModule, JsonPipe, FormUpdateDirective],
   templateUrl: './desserts.component.html',
   styleUrl: './desserts.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DessertsComponent implements OnInit {
-  #dessertService = inject(DessertService);
-  #ratingService = inject(RatingService);
-  #toastService = inject(ToastService);
+export class DessertsComponent {
+  #store = inject(DessertStore);
 
-  originalName = '';
-  englishName = '';
-  loading = false;
+  originalName = this.#store.filter.originalName;
+  englishName = this.#store.filter.englishName;
 
-  desserts: Dessert[] = [];
-
-  ngOnInit(): void {
-    this.search();
-  }
-
-  search(): void {
-    const filter: DessertFilter = {
-      originalName: this.originalName,
-      englishName: this.englishName,
-    };
-
-    this.loading = true;
-
-    this.#dessertService.find(filter).subscribe({
-      next: (desserts) => {
-        this.desserts = desserts;
-        this.loading = false;
-      },
-      error: (error) => {
-        this.loading = false;
-        this.#toastService.show('Error loading desserts!');
-        console.error(error);
-      },
-    });
-  }
-
-  toRated(desserts: Dessert[], ratings: DessertIdToRatingMap): Dessert[] {
-    return desserts.map((d) =>
-      ratings[d.id] ? { ...d, rating: ratings[d.id] } : d,
-    );
-  }
+  ratedDesserts = this.#store.ratedDesserts;
+  loading = this.#store.loading;
 
   loadRatings(): void {
-    this.loading = true;
-
-    this.#ratingService.loadExpertRatings().subscribe({
-      next: (ratings) => {
-        const rated = this.toRated(this.desserts, ratings);
-        this.desserts = rated;
-        this.loading = false;
-      },
-      error: (error) => {
-        this.#toastService.show('Error loading ratings!');
-        console.error(error);
-        this.loading = false;
-      },
-    });
+    this.#store.loadRatings();
   }
 
   updateRating(id: number, rating: number): void {
-    console.log('rating changed', id, rating);
+    this.#store.updateRating(id, rating);
+  }
+
+  updateFilter(filter: DessertFilter): void {
+    this.#store.updateFilter(filter);
   }
 }
